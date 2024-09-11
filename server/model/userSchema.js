@@ -5,29 +5,29 @@ const userSchema = new mongoose.Schema({
         type: String,
         required: true,
         trim: true,
-        min: 5,
-        max: 20
+        minlength: 5,
+        maxlength: 20
     },
     lastname: {
         type: String,
         required: true,
         trim: true,
-        min: 5,
-        max: 20
+        minlength: 5,
+        maxlength: 20
     },
     username: {
         type: String,
         required: true,
         trim: true,
-        unique: true,
-        index: true,
-        lowercase: true
+        unique: true, // Ensures uniqueness and creates an index
+        lowercase: true,
+        index: true // Creates an additional index for performance optimization
     },
     email: {
         type: String,
         required: true,
         trim: true,
-        unique: true,
+        unique: true, // Ensures uniqueness and creates an index
         lowercase: true
     },
     password: {
@@ -37,8 +37,14 @@ const userSchema = new mongoose.Schema({
     phone: {
         type: String
     }
-},{versionkey:false,timestasmps:true});
+}, {
+    versionKey: false,
+    timestamps: true
+});
 
-const user = mongoose.model('user', userSchema);
+// Create an index for the `username` field
+userSchema.index({ username: 1 });
 
-export default user;
+const User = mongoose.model('User', userSchema);
+
+export default User;

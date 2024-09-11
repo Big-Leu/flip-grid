@@ -54,7 +54,7 @@ const Search = () => {
     }, [dispatch])
 
     return (
-        <SearchContainer>
+        <SearchContainer className='mr-[2rem]'>
             <InputSearchBase
               placeholder="Search for products, brands and more"
               inputProps={{ 'aria-label': 'search' }}

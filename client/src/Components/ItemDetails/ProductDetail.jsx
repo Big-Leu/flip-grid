@@ -59,7 +59,7 @@ const ProductDetail = ({ product }) => {
                     </ColumnText>
                     <TableRow>
                         <TableCell colSpan={2}>
-                            <img src={adURL} style={{ width: 390 }} />
+                            <img src={adURL}  alt="something something" style={{ width: 390 }} />
                         </TableCell>
                     </TableRow>
                     <ColumnText>

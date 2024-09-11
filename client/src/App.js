@@ -8,17 +8,20 @@ import DetailView from './Components/ItemDetails/DetailView';
 import TemplateProvider from './templates/TemplateProvider';
 import ContextProvider from './context/ContextProvider';
 import Cart from './Components/Cart/Cart';
+import Div from './Components/Inventry/div';
 
 function App() {
   return (
     <TemplateProvider>
       <ContextProvider>
         <BrowserRouter>
+        
           <Header />
           <Box style={{marginTop: 54}}>
             <Routes>
               <Route path= '/' element={<Home />} />
               <Route path= '/cart' element={<Cart />} />
+              <Route path= '/inventry' element={<Div />} />
               <Route path= '/product/:id' element={<DetailView />} />
             </Routes>
           </Box>

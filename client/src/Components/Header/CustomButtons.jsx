@@ -1,5 +1,5 @@
 import React, { useState, useContext } from 'react';
-
+import { Navigate, useNavigate } from 'react-router-dom';
 import { Box, Typography, Badge, Button, styled } from '@mui/material';
 import { ShoppingCart } from '@mui/icons-material';
 
@@ -16,6 +16,8 @@ const Container = styled(Link)(({ theme }) => ({
         display: 'block'
     }
 }));
+
+
 
 const Wrapper = styled(Box)(({ theme }) => ({
     margin: '0 3% 0 auto',
@@ -55,25 +57,32 @@ const LoginButton = styled(Button)(({ theme }) => ({
 }));
 
 
-const CustomButtons = () => {
+function CustomButtons  () {
     
     const [open, setOpen] = useState(false);
     const { account, setAccount } = useContext(LoginContext);
-
+    
     const cartDetails = useSelector(state => state.cart);
     const { cartItems } = cartDetails;
-
+    const  navigate = useNavigate();
+    
     const openDialog = () => {
         setOpen(true);
     }
+    const clickInventry = () => {
+         navigate('/inventry') 
+        console.log("clicked inventry")
+    }
 
     return (
-        <Wrapper>
+        <>
+        <Wrapper >
             {
                 account ? <Profile account={account} setAccount={setAccount} /> :
-                    <LoginButton variant="contained" onClick={() => openDialog()}>Login</LoginButton>
+                <LoginButton variant="contained" onClick={() => openDialog()}>Login</LoginButton>
                 
             }
+            <LoginButton onClick={clickInventry}>inventry</LoginButton>
             <Typography style={{ marginTop: 3, width: 135 }}>Become a Seller</Typography>
             <Typography style={{ marginTop: 3 }}>More</Typography>
             
@@ -85,6 +94,8 @@ const CustomButtons = () => {
             </Container>
             <LoginDialog open={open} setOpen={setOpen} setAccount={setAccount} />
         </Wrapper>
+        </>
+
     )
 }
 

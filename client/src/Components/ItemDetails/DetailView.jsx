@@ -1,11 +1,8 @@
-import { useState, useEffect } from 'react';
-
+import { useEffect } from 'react';
 import { styled, Box, Typography, Grid } from '@mui/material';
-
 import ProductDetail from './ProductDetail';
 import ActionItem from './ActionItem';
 import { useParams } from 'react-router-dom';
-import { getProductById } from '../../service/api';
 import { useDispatch, useSelector } from 'react-redux';
 
 import { getProductDetails } from '../../redux/actions/productActions';
@@ -56,7 +53,7 @@ const DetailView = () => {
                         <Typography>{product.title.longTitle}</Typography>
                         <Typography style={{marginTop: 5, color: '#878787', fontSize: 14 }}>
                             8 Ratings & 1 Reviews
-                            <span><img src={fassured} style={{width: 77, marginLeft: 20}} /></span>
+                            <span><img src={fassured}  alt="kuch"  style={{width: 77, marginLeft: 20}} /></span>
                         </Typography>
                         <Typography>
                             <span style={{ fontSize: 28 }}>₹{product.price.cost}</span>&nbsp;&nbsp;&nbsp; 

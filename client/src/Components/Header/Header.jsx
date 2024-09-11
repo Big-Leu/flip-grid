@@ -85,7 +85,7 @@ const Header = () => {
                     {list()}
                 </Drawer>
 
-                <Component to='/'>
+                <Component to='/' className="mr-[1rem]">
                     <img src={logoURL} style={{ width: 75 }} />
                     <Box component="span" style={{ display: 'flex' }}>
                         <SubHeading>Explore&nbsp;
