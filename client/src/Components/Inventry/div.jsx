@@ -1,5 +1,6 @@
 import React, { useEffect,useState, useRef } from 'react';
 import useWebSocket from 'react-use-websocket';
+import { v4 as uuidv4 } from 'uuid';
 
 const data = [
   {
@@ -34,7 +35,7 @@ const VideoStream = () => {
   const videoRef3 = useRef(null);
   const mediaRecorderRef = useRef(null);
   const [isRecording, setIsRecording] = useState(false);
-  const { sendMessage } = useWebSocket('ws://127.0.0.1:8080/api/v1/form/ws');
+  const { sendMessage } = useWebSocket('ws://127.0.0.1:8000/api/v1/form/ws');
 
   useEffect(() => {
     const startStreaming = async () => {
@@ -163,7 +164,7 @@ const VideoStream = () => {
             <h1 className='font-koulen text-stone-100 text-4xl'>Scanned items</h1>
             <div className='flex flex-col font-koulen mt-[1rem] overflow-y-auto space-y-[1rem] scrollbar-none'>
               {data.map((data)=>(
-                <div className=''>
+                <div className='' key={uuidv4()}>
                   <h1 className='text-stone-100 text-xl'>{data.name}</h1>
                   <div className='flex flex-row space-x-3'>
                     <label className='text-[#9CABBA]'>Expiry date: <span>{data.expiry_date}</span></label>
