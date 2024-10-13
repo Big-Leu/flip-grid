@@ -1,4 +1,4 @@
-import React, { useEffect,useState, useRef } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import useWebSocket from 'react-use-websocket';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -31,39 +31,101 @@ const data = [
 
 const VideoStream = () => {
   const videoRef1 = useRef(null);
-  const videoRef2 = useRef(null);
-  const videoRef3 = useRef(null);
   const mediaRecorderRef = useRef(null);
   const [isRecording, setIsRecording] = useState(false);
-  const { sendMessage } = useWebSocket('ws://127.0.0.1:8000/api/v1/form/ws');
+  const [result,setResult] = useState({});
+
+  // const itemInfo = result[0];
+  // const predictedInfo = result[1];
+  // const BrandName = itemInfo.name ? itemInfo.name : "XYZ Brand"
+  // const mrpValue = itemInfo.mrp ? itemInfo.mrp : "MRP not available";
+  // const expiryDate = itemInfo.expiry_date ? itemInfo.expiry_date : "No expiry date";
+  // const fresh = predictedInfo["Predicted Class"];
+  // const confidence = predictedInfo.Confidence[0].toFixed(2);
+  const { sendMessage, lastMessage } = useWebSocket('ws://127.0.0.1:8000/api/v1/form/ws', {
+    onOpen: () => console.log('WebSocket connection opened.'),
+    onClose: () => console.log('WebSocket connection closed.'),
+    onError: (event) => console.error('WebSocket error:', event),
+  });
+  const URL = 'http://127.0.0.1:8000';
+  const getslots = async () => {
+    try {
+      const response = await fetch(`${URL}/api/v1/form/fill?path=backend/services/video/f0146783-3cc5-4d50-a38f-1271541f8cd2.mkv`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        }
+      });
+  
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+  
+      const { result } = await response.json();
+      setResult(result)
+      console.log(result);
+    } catch (error) {
+      console.error("Error fetching data:", error);
+    }
+  }
+
+
+  // This useEffect handles incoming WebSocket messages
+  useEffect(() => {
+    if (lastMessage) {
+      // Assuming server is sending text messages, not binary
+      console.log('Received message from server:', lastMessage.data);
+      // If you're receiving binary data (like video chunks), you would need to handle it differently.
+    }
+  }, [lastMessage]);
 
   useEffect(() => {
     const startStreaming = async () => {
-      const stream = await navigator.mediaDevices.getUserMedia({ video: true });
-      videoRef1.current.srcObject = stream;
-
-      const mediaRecorder = new MediaRecorder(stream, { mimeType: 'video/webm' });
-      mediaRecorderRef.current = mediaRecorder;
-
-      mediaRecorder.ondataavailable = (event) => {
-        if (event.data.size > 0) {
-          console.log('Data is available', event.data.type, event.data.size, mediaRecorder.state);
-          sendMessage(event.data);
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({
+          video: {
+            width: { ideal: 1920 }, // Full HD width
+            height: { ideal: 1080 }, // Full HD height
+            frameRate: { ideal: 60 }, // 30 FPS for smoother video
+          },
+        });
+        if (videoRef1.current) {
+          videoRef1.current.srcObject = stream;
         }
-      };
 
-      if (isRecording) {
-        mediaRecorder.start(100); // Send data every 100ms
-      } else {
-        mediaRecorder.stop();
+        const mediaRecorder = new MediaRecorder(stream, { mimeType: 'video/webm' });
+        mediaRecorderRef.current = mediaRecorder;
+
+        mediaRecorder.ondataavailable = (event) => {
+          if (event.data.size > 0) {
+            console.log('Data is available', event.data.type, event.data.size, mediaRecorder.state);
+            sendMessage(event.data);
+          }
+        };
+
+        // Start or stop recording based on the isRecording state
+        if (isRecording) {
+          mediaRecorder.start(100); // Send data every 100ms
+        } else {
+          mediaRecorder.stop();
+        }
+
+      } catch (error) {
+        console.error('Error accessing media devices.', error);
       }
     };
 
     startStreaming();
 
+    // Cleanup function to stop the media recorder and release the stream
     return () => {
       if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
         mediaRecorderRef.current.stop();
+      }
+      if (videoRef1.current && videoRef1.current.srcObject) {
+        const stream = videoRef1.current.srcObject;
+        const tracks = stream.getTracks();
+        tracks.forEach((track) => track.stop()); // Stop all tracks
       }
     };
   }, [isRecording, sendMessage]);
@@ -71,6 +133,8 @@ const VideoStream = () => {
   const handleToggleRecording = () => {
     setIsRecording((prev) => !prev);
   };
+
+
   const urlmango = "https://s3-alpha-sig.figma.com/img/5706/e88d/549e105d65c1be2d8cd34273e09967d7?Expires=1729468800&Key-Pair-Id=APKAQ4GOSFWCVNEHN3O4&Signature=g~sU~cvBDERq1fBvoxh5JJAPEt8WOD3I1zX1d8s8oCFHPnA4mT2PStBcfZzPVfr29aIsx9QEgro4gzL5dyMSylJJmpN7RdJOf6KwpzyLP3Xv7PLzrD75Niz-HzKqqfKRkXTRPDCnSxOSe87K7HgzhlxwwiMPG8KjQ4FU2DyxAASFOU9gSgKpscW4oIb83agb-qtX-gkmbN0cFX7hOSNGigU6cUMcc7BxXIc2sJrY36JA4FGNKINFUpSjZmCBbJF8Q7b5diz2cKegoUuIqkPYodFy1vZ-uAOsllqlOBfclbYjc6q~IkwLKpzXnHK2mA3aojkwqOPT3yAFemLH2HrTpQ__"
   return (
     <div className='min-h-[92.6vh] min-w-screen flex flex-row overflow-clip'>
@@ -95,7 +159,7 @@ const VideoStream = () => {
               </div>
               <div className='mt-[1rem] '>
                 <h1 className='font-koulen text-sm'>Angle two</h1>
-                <video className="min-h-[10%] max-w-[60%] " ref={videoRef2} autoPlay muted/>
+                <video className="min-h-[10%] max-w-[60%] " ref={videoRef1} autoPlay muted/>
                 <div className='flex flex-row '>
                   <button className="bg-stone-950 text-stone-100 font-dangrek px-[1rem] py-[.5rem] rounded-sm mr-[1.5rem]" onClick={handleToggleRecording}>
                     Start 
@@ -107,7 +171,7 @@ const VideoStream = () => {
               </div>
               <div className='mt-[1rem] '>
                 <h1 className='font-koulen text-sm'>Angle three</h1>
-                <video className="min-h-[10%] max-w-[60%] " ref={videoRef3} autoPlay muted/>
+                <video className="min-h-[10%] max-w-[60%] " ref={videoRef1} autoPlay muted/>
                 <div className='flex flex-row'>
                   <button className="bg-stone-950 text-stone-100 font-dangrek px-[1rem] py-[.5rem]  rounded-sm mr-[1.5rem]" onClick={handleToggleRecording}>
                     Start 
@@ -122,7 +186,7 @@ const VideoStream = () => {
       </div >
         <div className='min-h-full min-w-[75%] bg-[#121417] flex flex-col overflow-hidden '>
           <div className='ml-[2rem] mt-[2rem]'>
-            <h1 className='text-stone-50 font-koulen text-4xl mt-1'>FreshSmart</h1>
+            <h1 className='text-stone-50 font-koulen text-4xl mt-1' onClick={getslots}>FreshSmart</h1>
             <div className='flex flex-row mt-[2rem]'>
                <img  className='w-[226px] h-[226px] relative rounded-sm' src={urlmango} ></img>
                <div className='ml-[2rem] min-w-full'>
