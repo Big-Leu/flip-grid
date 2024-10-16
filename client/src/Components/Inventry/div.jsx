@@ -28,14 +28,18 @@ const data = [
     "description": "Another example description here"
   }
 ];
-
 const VideoStream = () => {
   const videoRef1 = useRef(null);
-  const mediaRecorderRef = useRef(null);
-  const [isRecording, setIsRecording] = useState(false);
-  const [result, setResult] = useState([]);
+  const videoRef2 = useRef(null);
+  const videoRef3 = useRef(null);
+  const mediaRecorderRef1 = useRef(null);
+  const mediaRecorderRef2 = useRef(null);
+  const mediaRecorderRef3 = useRef(null);
+  const [isRecording1, setIsRecording1] = useState(false);
+  const [isRecording2, setIsRecording2] = useState(false);
+  const [isRecording3, setIsRecording3] = useState(false);
   const [devices, setDevices] = useState([]);
-  const [selectedDeviceId, setSelectedDeviceId] = useState(null);
+  const [selectedDeviceId1, setSelectedDeviceId1] = useState(null);
   const [selectedDeviceId2, setSelectedDeviceId2] = useState(null);
   const [selectedDeviceId3, setSelectedDeviceId3] = useState(null);
   const [productInfo, setProductInfo] = useState({
@@ -45,39 +49,34 @@ const VideoStream = () => {
     freshStatus: "Freshness status not available",
     confidence: "Confidence not available"
   });
-
-  const { sendMessage, lastMessage } = useWebSocket('ws://127.0.0.1:8000/api/v1/form/ws', {
-    onOpen: () => console.log('WebSocket connection opened.'),
-    onClose: () => console.log('WebSocket connection closed.'),
-    onError: (event) => console.error('WebSocket error:', event),
-  });
-
-  const URL = 'http://127.0.0.1:8000';
-
+  const URL = "http://localhost:8000"
   const getslots = async () => {
     try {
-      const response = await fetch(`${URL}/api/v1/form/fill?path=backend/services/video/90b810e0-6887-4661-a8ad-be9d1432b0a0.mkv`, {
+      const raw = JSON.stringify([
+        "backend/services/video/20fcce92-d510-47e0-8d64-b62d135f95b6.mkv",
+        "backend/services/video/b3de1103-41c9-42e7-ac3b-b2e62b345400.mkv"
+      ]);
+      const response = await fetch(`${URL}/api/v1/form/fill`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
-        }
+        },
+        body: raw,
       });
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
       const { result } = await response.json();
-      setResult(result);
       console.log(result.length);
       if (result.length > 0) {
         const itemInfo = result[0] || {};
-        const predictedInfo = result[1] || {};
   
         const updatedProductInfo = {
           brandName: itemInfo.name || "Brand not available",
           mrpValue: itemInfo.mrp || "MRP not available",
           expiryDate: itemInfo.expiry_date || "Expiry date not available",
-          freshStatus: predictedInfo["Predicted Class"] || "Freshness status not available",
-          confidence: predictedInfo.Confidence ? predictedInfo.Confidence[0].toFixed(2) : "Confidence not available"
+          freshStatus: itemInfo["Predicted Class"] || "Freshness status not available",
+          confidence: itemInfo.Confidence ? itemInfo.Confidence[0].toFixed(2) : "Confidence not available"
         };
   
         setProductInfo(updatedProductInfo);
@@ -88,89 +87,166 @@ const VideoStream = () => {
     }
   };
 
-  useEffect(() => {
-    if (lastMessage) {
-      console.log('Received message from server:', lastMessage.data);
-    }
-  }, [lastMessage]);
+
+  const { sendMessage: sendMessage1, lastMessage: lastMessage1 } = useWebSocket('ws://127.0.0.1:8000/api/v1/form/ws', {
+    onOpen: () => console.log('WebSocket 1 connection opened.'),
+    onClose: () => console.log('WebSocket 1 connection closed.'),
+    onError: (event) => console.error('WebSocket 1 error:', event),
+  });
+
+  const { sendMessage: sendMessage2, lastMessage: lastMessage2 } = useWebSocket('ws://127.0.0.1:8000/api/v1/form/ws', {
+    onOpen: () => console.log('WebSocket 2 connection opened.'),
+    onClose: () => console.log('WebSocket 2 connection closed.'),
+    onError: (event) => console.error('WebSocket 2 error:', event),
+  });
+
+  const { sendMessage: sendMessage3, lastMessage: lastMessage3 } = useWebSocket('ws://127.0.0.1:8000/api/v1/form/ws', {
+    onOpen: () => console.log('WebSocket 3 connection opened.'),
+    onClose: () => console.log('WebSocket 3 connection closed.'),
+    onError: (event) => console.error('WebSocket 3 error:', event),
+  });
 
   useEffect(() => {
     const getCameras = async () => {
       const devices = await navigator.mediaDevices.enumerateDevices();
       const videoDevices = devices.filter(device => device.kind === 'videoinput');
       setDevices(videoDevices);
-      setSelectedDeviceId(videoDevices.length > 0 ? videoDevices[0].deviceId : null); // Default to the first device
+
+      setSelectedDeviceId1(videoDevices.length > 0 ? videoDevices[0].deviceId : null);
+      setSelectedDeviceId2(videoDevices.length > 1 ? videoDevices[1].deviceId : null);
+      setSelectedDeviceId3(videoDevices.length > 2 ? videoDevices[2].deviceId : null);
     };
 
     getCameras();
   }, []);
 
   useEffect(() => {
-    const startStreaming = async () => {
-      try {
-        if (!selectedDeviceId) return;
+    if (lastMessage1) {
+      console.log('Message from camera 1:', lastMessage1.data);
+    }
+  }, [lastMessage1]);
 
-        const stream = await navigator.mediaDevices.getUserMedia({
-          video: {
-            deviceId: { exact: selectedDeviceId },
-            width: { ideal: 1920 },
-            height: { ideal: 1080 },
-            frameRate: { ideal: 60 },
-          },
-        });
+  useEffect(() => {
+    if (lastMessage2) {
+      console.log('Message from camera 2:', lastMessage2.data);
+    }
+  }, [lastMessage2]);
 
-        if (videoRef1.current) {
-          videoRef1.current.srcObject = stream;
-        }
+  useEffect(() => {
+    if (lastMessage3) {
+      console.log('Message from camera 3:', lastMessage3.data);
+    }
+  }, [lastMessage3]);
 
-        const mediaRecorder = new MediaRecorder(stream, { mimeType: 'video/webm' });
-        mediaRecorderRef.current = mediaRecorder;
+  const startStreaming = async (videoRef, deviceId, mediaRecorderRef, sendMessage ,isRecording) => {
+    if (!deviceId) return;
 
-        mediaRecorder.ondataavailable = (event) => {
-          if (event.data.size > 0) {
-            console.log('Data is available', event.data.type, event.data.size, mediaRecorder.state);
-            sendMessage(event.data);
-          }
-        };
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: {
+          deviceId: { exact: deviceId },
+          width: { ideal: 1920 },
+          height: { ideal: 1080 },
+          frameRate: { ideal: 60 },
+        },
+      });
 
-        if (isRecording) {
-          mediaRecorder.start(100);
-        } else if (mediaRecorder.state !== 'inactive') {
-          mediaRecorder.stop();
-        }
-      } catch (error) {
-        console.error('Error accessing media devices.', error);
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream;
       }
-    };
 
-    startStreaming();
+      const mediaRecorder = new MediaRecorder(stream, { mimeType: 'video/webm' });
+      mediaRecorderRef.current = mediaRecorder;
+
+      mediaRecorder.ondataavailable = (event) => {
+        if (event.data.size > 0) {
+          sendMessage(event.data);
+        }
+      };
+
+      if (isRecording) {
+        mediaRecorder.start(100); // Start recording
+      } else if (mediaRecorder.state !== 'inactive') {
+        mediaRecorder.stop();
+      }
+    } catch (error) {
+      console.error('Error accessing media devices.', error);
+    }
+  };
+
+  useEffect(() => {
+    if (isRecording1) {
+      startStreaming(videoRef1, selectedDeviceId1, mediaRecorderRef1, sendMessage1,isRecording1);
+    } else {
+      if (mediaRecorderRef1.current && mediaRecorderRef1.current.state !== 'inactive') mediaRecorderRef1.current.stop();
+    }
+    return () => {
+      [mediaRecorderRef1].forEach((ref) => {
+        if (ref.current && ref.current.state !== 'inactive') ref.current.stop();
+      });
+
+      [videoRef1].forEach((ref) => {
+        if (ref.current && ref.current.srcObject) {
+          const stream = ref.current.srcObject;
+          const tracks = stream.getTracks();
+          tracks.forEach(track => track.stop());
+        }
+      });
+    };
+  }, [isRecording1]);
+  useEffect(() => {
+
+    if (isRecording2) {
+      startStreaming(videoRef2, selectedDeviceId2, mediaRecorderRef2, sendMessage2,isRecording2);
+    } else {
+      if (mediaRecorderRef2.current && mediaRecorderRef2.current.state !== 'inactive') mediaRecorderRef2.current.stop();
+    }
+    return () => {
+      [mediaRecorderRef2].forEach((ref) => {
+        if (ref.current && ref.current.state !== 'inactive') ref.current.stop();
+      });
+
+      [ videoRef2].forEach((ref) => {
+        if (ref.current && ref.current.srcObject) {
+          const stream = ref.current.srcObject;
+          const tracks = stream.getTracks();
+          tracks.forEach(track => track.stop());
+        }
+      });
+    };
+  }, [isRecording2]);
+  useEffect(() => {
+
+    if (isRecording3) {
+      startStreaming(videoRef3, selectedDeviceId3, mediaRecorderRef3, sendMessage3,isRecording3);
+    } else {
+      if (mediaRecorderRef3.current && mediaRecorderRef3.current.state !== 'inactive') mediaRecorderRef3.current.stop();
+    }
 
     return () => {
-      if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
-        mediaRecorderRef.current.stop();
-      }
-      if (videoRef1.current && videoRef1.current.srcObject) {
-        const stream = videoRef1.current.srcObject;
-        const tracks = stream.getTracks();
-        tracks.forEach(track => track.stop());
-      }
+      [mediaRecorderRef3].forEach((ref) => {
+        if (ref.current && ref.current.state !== 'inactive') ref.current.stop();
+      });
+
+      [videoRef3].forEach((ref) => {
+        if (ref.current && ref.current.srcObject) {
+          const stream = ref.current.srcObject;
+          const tracks = stream.getTracks();
+          tracks.forEach(track => track.stop());
+        }
+      });
     };
-  }, [isRecording, sendMessage, selectedDeviceId]);
+  }, [isRecording3]);
 
-  const handleToggleRecording = () => {
-    setIsRecording(prev => !prev);
+  const handleToggleRecording1 = () => {
+    setIsRecording1(prev => !prev);
   };
-
-  const handleDeviceChange = (event) => {
-    setSelectedDeviceId(event.target.value);
+  const handleToggleRecording2 = () => {
+    setIsRecording2(prev => !prev);
   };
-  const handleDeviceChange2 = (event) => {
-    setSelectedDeviceId2(event.target.value);
+  const handleToggleRecording3 = () => {
+    setIsRecording3(prev => !prev);
   };
-  const handleDeviceChange3 = (event) => {
-    setSelectedDeviceId3(event.target.value);
-  };
-
   const urlmango = "https://s3-alpha-sig.figma.com/img/5706/e88d/549e105d65c1be2d8cd34273e09967d7?Expires=1729468800&Key-Pair-Id=APKAQ4GOSFWCVNEHN3O4&Signature=g~sU~cvBDERq1fBvoxh5JJAPEt8WOD3I1zX1d8s8oCFHPnA4mT2PStBcfZzPVfr29aIsx9QEgro4gzL5dyMSylJJmpN7RdJOf6KwpzyLP3Xv7PLzrD75Niz-HzKqqfKRkXTRPDCnSxOSe87K7HgzhlxwwiMPG8KjQ4FU2DyxAASFOU9gSgKpscW4oIb83agb-qtX-gkmbN0cFX7hOSNGigU6cUMcc7BxXIc2sJrY36JA4FGNKINFUpSjZmCBbJF8Q7b5diz2cKegoUuIqkPYodFy1vZ-uAOsllqlOBfclbYjc6q~IkwLKpzXnHK2mA3aojkwqOPT3yAFemLH2HrTpQ__"
   return (
     <div className='min-h-[92.6vh] min-w-screen flex flex-row overflow-clip'>
@@ -183,7 +259,7 @@ const VideoStream = () => {
           <div>
             <div className='mt-[1rem] font-koulen'>
               <h1 className='ml-1'>Angle One</h1>
-              <select value={selectedDeviceId} onChange={handleDeviceChange} className='mb-4'>
+              <select  onChange={(e) => setSelectedDeviceId1(e.target.value)} value={selectedDeviceId1}  className='mb-4'>
                 {devices.map((device) => (
                   <option key={device.deviceId} value={device.deviceId}>
                     {device.label || `Camera ${device.deviceId}`}
@@ -192,10 +268,10 @@ const VideoStream = () => {
               </select>
               <video className="max-w-[50%] rounded-md" ref={videoRef1} autoPlay muted />
               <div className='flex-row mt-2'>
-                <button className="bg-stone-950 text-stone-100 font-dangrek px-[1rem] py-[.5rem] rounded-sm mr-[1.5rem]" onClick={handleToggleRecording}>
+                <button className="bg-stone-950 text-stone-100 font-dangrek px-[1rem] py-[.5rem] rounded-sm mr-[1.5rem]" onClick={handleToggleRecording1}>
                   Start
                 </button>
-                <button className="bg-stone-950 text-stone-100 font-dangrek px-[1.5rem] py-[.5rem] rounded-sm ml-[1.5rem]" onClick={handleToggleRecording}>
+                <button className="bg-stone-950 text-stone-100 font-dangrek px-[1.5rem] py-[.5rem] rounded-sm ml-[1.5rem]" onClick={handleToggleRecording1}>
                   End
                 </button>
               </div>
@@ -204,19 +280,19 @@ const VideoStream = () => {
           <div>
             <div className='mt-[1rem] font-koulen'>
             <h1 className='ml-1'>Angle Two</h1>
-              <select value={selectedDeviceId2} onChange={handleDeviceChange2} className='mb-4'>
+              <select  onChange={(e) => setSelectedDeviceId2(e.target.value)} value={selectedDeviceId2}  className='mb-4'>
                 {devices.map((device) => (
                   <option key={device.deviceId} value={device.deviceId}>
                     {device.label || `Camera ${device.deviceId}`}
                   </option>
                 ))}
               </select>
-              <video className="max-w-[50%] rounded-md" ref={videoRef1} autoPlay muted />
+              <video className="max-w-[50%] rounded-md" ref={videoRef2} autoPlay muted />
               <div className='flex-row mt-2'>
-                <button className="bg-stone-950 text-stone-100 font-dangrek px-[1rem] py-[.5rem] rounded-sm mr-[1.5rem]" onClick={handleToggleRecording}>
+                <button className="bg-stone-950 text-stone-100 font-dangrek px-[1rem] py-[.5rem] rounded-sm mr-[1.5rem]" onClick={handleToggleRecording2}>
                   Start
                 </button>
-                <button className="bg-stone-950 text-stone-100 font-dangrek px-[1.5rem] py-[.5rem] rounded-sm ml-[1.5rem]" onClick={handleToggleRecording}>
+                <button className="bg-stone-950 text-stone-100 font-dangrek px-[1.5rem] py-[.5rem] rounded-sm ml-[1.5rem]" onClick={handleToggleRecording2}>
                   End
                 </button>
               </div>
@@ -225,19 +301,19 @@ const VideoStream = () => {
           <div>
             <div className='mt-[1rem] font-koulen'>
             <h1 className='ml-1'>Angle Three</h1>
-              <select value={selectedDeviceId3} onChange={handleDeviceChange3} className='mb-4'>
+              <select  onChange={(e) => setSelectedDeviceId3(e.target.value)} value={selectedDeviceId3}  className='mb-4'>
                 {devices.map((device) => (
                   <option key={device.deviceId} value={device.deviceId} >
                     {device.label || `Camera ${device.deviceId}`}
                   </option>
                 ))}
               </select>
-              <video className="max-w-[50%] rounded-md" ref={videoRef1} autoPlay muted />
+              <video className="max-w-[50%] rounded-md" ref={videoRef3} autoPlay muted />
               <div className='flex-row mt-2'>
-                <button className="bg-stone-950 text-stone-100 font-dangrek px-[1rem] py-[.5rem] rounded-sm mr-[1.5rem]" onClick={handleToggleRecording}>
+                <button className="bg-stone-950 text-stone-100 font-dangrek px-[1rem] py-[.5rem] rounded-sm mr-[1.5rem]" onClick={handleToggleRecording3}>
                   Start
                 </button>
-                <button className="bg-stone-950 text-stone-100 font-dangrek px-[1.5rem] py-[.5rem] rounded-sm ml-[1.5rem]" onClick={handleToggleRecording}>
+                <button className="bg-stone-950 text-stone-100 font-dangrek px-[1.5rem] py-[.5rem] rounded-sm ml-[1.5rem]" onClick={handleToggleRecording3}>
                   End
                 </button>
               </div>
@@ -249,7 +325,7 @@ const VideoStream = () => {
           <div className='ml-[2rem] mt-[2rem]'>
             <h1 className='text-stone-50 font-koulen text-4xl mt-1' onClick={getslots}>FreshSmart</h1>
             <div className='flex flex-row mt-[2rem]'>
-               <img  className='w-[226px] h-[226px] relative rounded-sm' src={urlmango} ></img>
+               {/* <img  className='w-[226px] h-[226px] relative rounded-sm' src={urlmango}  alt='productImage'></img> */}
                <div className='ml-[2rem] min-w-full'>
                  <h1 className='font-koulen text-slate-100 text-xl'>product detail</h1>
                  <div className='bg-[#6F6B6B] min-h-1 max-w-[70%]'></div>
@@ -274,18 +350,18 @@ const VideoStream = () => {
                      </div>
                       <div className='ml-[14rem] mt-[1rem] font-koulen'>
                         <h1 className='text-slate-100 text-2xl'>Fressness indication</h1>
-                        <h1 className={`text-2xl mt-[1rem] ml-[5.5rem] ${productInfo.confidence < 70 ? 'text-red-500' : 'text-emerald-500'}`}>{productInfo.confidence}</h1>
+                        <h1 className={`text-2xl mt-[1rem] ${productInfo.confidence < 70 ? 'text-red-500' : 'text-emerald-500'} ${productInfo.confidence.toLowerCase().includes('confidence not available') ? 'ml-[-1rem]' : 'ml-[5.5rem]'}`}>{productInfo.confidence}</h1>
                         <h1 className='text-slate-100 text-sm/5 ml-[3rem]'>edible range - <span className='text-emerald-500'> 70-100%</span></h1>
-                        <div className='flex flex-row space-x-[7.2rem] mt-[1rem]'>
+                        <div className='flex flex-row space-x-[8rem] mt-[1rem]'>
                           <h1 className={`text-md ${productInfo.freshStatus.toLowerCase().includes('rotten') ? 'text-red-500' : 'text-slate-100'}`}>rotten</h1>
-                          <h1 className={`text-md ${productInfo.freshStatus.toLowerCase().includes('fresh') ? 'text-emerald-500' : 'text-slate-100'}`}>fresh</h1>
+                          <h1 className={`text-md  ${productInfo.freshStatus.toLowerCase().includes('fresh') ? 'text-emerald-500' : 'text-slate-100 '}`}>fresh</h1>
                         </div>
                       </div>
                  </div>
                </div>
             </div>
           </div>
-          <div className='ml-[2rem] mt-[3rem] flex flex-col'>
+          <div className='ml-[2rem] mt-[10vh] flex flex-col'>
             <h1 className='font-koulen text-stone-100 text-4xl'>Scanned items</h1>
             <div className='flex flex-col font-koulen mt-[1rem] overflow-y-auto space-y-[1rem] scrollbar-none'>
               {data.map((data)=>(
