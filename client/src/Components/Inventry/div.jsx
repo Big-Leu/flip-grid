@@ -1,33 +1,35 @@
 import React, { useEffect, useState, useRef } from 'react';
 import useWebSocket from 'react-use-websocket';
 import { v4 as uuidv4 } from 'uuid';
+import * as tf from "@tensorflow/tfjs"
+import * as cocossd from "@tensorflow-models/coco-ssd"
 
-const data = [
-  {
-    "name": "Fortune Sunlite Refined Sunflower Oil",
-    "expiry_date": "15 July 2023",
-    "mrp": "15 July 2023",
-    "description": "15 July 2023"
-  },
-  {
-    "name": "Fortune Sunlite Refined Sunflower Oil",
-    "expiry_date": "15 July 2023",
-    "mrp": "15 July 2023",
-    "description": "15 July 2023"
-  },
-  {
-    "name": "Example Product Name",
-    "expiry_date": "01 January 2024",
-    "mrp": "150 INR",
-    "description": "An example description here"
-  },
-  {
-    "name": "Another Example Product",
-    "expiry_date": "20 December 2023",
-    "mrp": "200 INR",
-    "description": "Another example description here"
-  }
-];
+// const data = [
+//   {
+//     "name": "Fortune Sunlite Refined Sunflower Oil",
+//     "expiry_date": "15 July 2023",
+//     "mrp": "15 July 2023",
+//     "description": "15 July 2023"
+//   },
+//   {
+//     "name": "Fortune Sunlite Refined Sunflower Oil",
+//     "expiry_date": "15 July 2023",
+//     "mrp": "15 July 2023",
+//     "description": "15 July 2023"
+//   },
+//   {
+//     "name": "Example Product Name",
+//     "expiry_date": "01 January 2024",
+//     "mrp": "150 INR",
+//     "description": "An example description here"
+//   },
+//   {
+//     "name": "Another Example Product",
+//     "expiry_date": "20 December 2023",
+//     "mrp": "200 INR",
+//     "description": "Another example description here"
+//   }
+// ];
 const VideoStream = () => {
   const videoRef1 = useRef(null);
   const videoRef2 = useRef(null);
@@ -36,6 +38,7 @@ const VideoStream = () => {
   const mediaRecorderRef2 = useRef(null);
   const mediaRecorderRef3 = useRef(null);
   const [isRecording1, setIsRecording1] = useState(false);
+  const [model, setModel] = useState(null);
   const [isRecording2, setIsRecording2] = useState(false);
   const [isRecording3, setIsRecording3] = useState(false);
   const [devices, setDevices] = useState([]);
@@ -115,61 +118,65 @@ const VideoStream = () => {
       console.error("Error fetching data:", error);
     }
   };
-
-
+  
+  
   const { sendMessage: sendMessage1, lastMessage: lastMessage1 } = useWebSocket('ws://127.0.0.1:8000/api/v1/form/ws', {
     onOpen: () => console.log('WebSocket 1 connection opened.'),
     onClose: () => console.log('WebSocket 1 connection closed.'),
     onError: (event) => console.error('WebSocket 1 error:', event),
   });
-
+  
   const { sendMessage: sendMessage2, lastMessage: lastMessage2 } = useWebSocket('ws://127.0.0.1:8000/api/v1/form/ws', {
     onOpen: () => console.log('WebSocket 2 connection opened.'),
     onClose: () => console.log('WebSocket 2 connection closed.'),
     onError: (event) => console.error('WebSocket 2 error:', event),
   });
-
+  
   const { sendMessage: sendMessage3, lastMessage: lastMessage3 } = useWebSocket('ws://127.0.0.1:8000/api/v1/form/ws', {
     onOpen: () => console.log('WebSocket 3 connection opened.'),
     onClose: () => console.log('WebSocket 3 connection closed.'),
     onError: (event) => console.error('WebSocket 3 error:', event),
   });
-
+  
   useEffect(() => {
     const getCameras = async () => {
       const devices = await navigator.mediaDevices.enumerateDevices();
       const videoDevices = devices.filter(device => device.kind === 'videoinput');
       setDevices(videoDevices);
-
+      
       setSelectedDeviceId1(videoDevices.length > 0 ? videoDevices[0].deviceId : null);
       setSelectedDeviceId2(videoDevices.length > 1 ? videoDevices[1].deviceId : null);
       setSelectedDeviceId3(videoDevices.length > 2 ? videoDevices[2].deviceId : null);
     };
-
+    
     getCameras();
   }, []);
-
+  
   useEffect(() => {
     if (lastMessage1) {
       console.log('Message from camera 1:', lastMessage1.data);
     }
   }, [lastMessage1]);
-
+  
   useEffect(() => {
     if (lastMessage2) {
       console.log('Message from camera 2:', lastMessage2.data);
     }
   }, [lastMessage2]);
-
+  
   useEffect(() => {
     if (lastMessage3) {
       console.log('Message from camera 3:', lastMessage3.data);
     }
   }, [lastMessage3]);
-
+  
+  const runCoco = async () => {
+    const net = await cocossd.load()
+    setModel(net)
+  }
   const startStreaming = async (videoRef, deviceId, mediaRecorderRef, sendMessage ,isRecording) => {
     if (!deviceId) return;
-
+    
     try {
       const stream = await navigator.mediaDevices.getUserMedia({
         video: {
@@ -179,19 +186,32 @@ const VideoStream = () => {
           frameRate: { ideal: 60 },
         },
       });
-
+      
       if (videoRef.current) {
         videoRef.current.srcObject = stream;
       }
-
-      const mediaRecorder = new MediaRecorder(stream, { mimeType: 'video/webm' });
-      mediaRecorderRef.current = mediaRecorder;
-
-      mediaRecorder.ondataavailable = (event) => {
-        if (event.data.size > 0) {
-          sendMessage(event.data);
+        
+      const video = videoRef.current;
+      const detectFrame = async () => {
+        if (video && model) {
+          const predictions = await model.detect(video);
+          console.log(predictions);
+  
+          // requestAnimationFrame(detectFrame); // Continuously detect frames
         }
       };
+  
+      video.onloadeddata = () => {
+        detectFrame();
+      };
+      const mediaRecorder = new MediaRecorder(stream, { mimeType: 'video/webm' });
+      mediaRecorderRef.current = mediaRecorder;
+      
+      mediaRecorder.ondataavailable = async (event) => {
+        if (event.data.size > 0) {
+          // sendMessage(event.data);
+        }
+      };  
 
       if (isRecording) {
         mediaRecorder.start(100); // Start recording
@@ -202,6 +222,10 @@ const VideoStream = () => {
       console.error('Error accessing media devices.', error);
     }
   };
+
+  useEffect(()=>{
+  runCoco()
+  },[])
 
   useEffect(() => {
     if (isRecording1) {
@@ -223,6 +247,7 @@ const VideoStream = () => {
       });
     };
   }, [isRecording1]);
+
   useEffect(() => {
 
     if (isRecording2) {
@@ -276,6 +301,13 @@ const VideoStream = () => {
   const handleToggleRecording3 = () => {
     setIsRecording3(prev => !prev);
   };
+
+
+
+
+
+
+
   const urlmango = "https://s3-alpha-sig.figma.com/img/5706/e88d/549e105d65c1be2d8cd34273e09967d7?Expires=1729468800&Key-Pair-Id=APKAQ4GOSFWCVNEHN3O4&Signature=g~sU~cvBDERq1fBvoxh5JJAPEt8WOD3I1zX1d8s8oCFHPnA4mT2PStBcfZzPVfr29aIsx9QEgro4gzL5dyMSylJJmpN7RdJOf6KwpzyLP3Xv7PLzrD75Niz-HzKqqfKRkXTRPDCnSxOSe87K7HgzhlxwwiMPG8KjQ4FU2DyxAASFOU9gSgKpscW4oIb83agb-qtX-gkmbN0cFX7hOSNGigU6cUMcc7BxXIc2sJrY36JA4FGNKINFUpSjZmCBbJF8Q7b5diz2cKegoUuIqkPYodFy1vZ-uAOsllqlOBfclbYjc6q~IkwLKpzXnHK2mA3aojkwqOPT3yAFemLH2HrTpQ__"
   return (
     <div className='min-h-[100vh] min-w-screen flex flex-row'>
