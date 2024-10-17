@@ -3,6 +3,8 @@ import useWebSocket from 'react-use-websocket';
 import { v4 as uuidv4 } from 'uuid';
 import * as tf from "@tensorflow/tfjs"
 import * as cocossd from "@tensorflow-models/coco-ssd"
+import { drawRect } from "../utilities";
+
 
 // const data = [
 //   {
@@ -37,8 +39,8 @@ const VideoStream = () => {
   const mediaRecorderRef1 = useRef(null);
   const mediaRecorderRef2 = useRef(null);
   const mediaRecorderRef3 = useRef(null);
+  const canvasRef = useRef(null);
   const [isRecording1, setIsRecording1] = useState(false);
-  const [model, setModel] = useState(null);
   const [isRecording2, setIsRecording2] = useState(false);
   const [isRecording3, setIsRecording3] = useState(false);
   const [devices, setDevices] = useState([]);
@@ -53,6 +55,7 @@ const VideoStream = () => {
     freshStatus: "Freshness status not available",
     confidence: "Confidence not available"
   });
+  const [model, setModel] = useState(null);
   const URL = "http://localhost:8000"
   const [isReloading,setReloading] = useState(false);
   const handleClick = async () => {
@@ -193,13 +196,39 @@ const VideoStream = () => {
         
       const video = videoRef.current;
       const detectFrame = async () => {
-        if (video && model) {
-          const predictions = await model.detect(video);
-          console.log(predictions);
-  
-          // requestAnimationFrame(detectFrame); // Continuously detect frames
+        if (video && model && canvasRef.current) { // Check if canvasRef.current is defined
+          try {
+            // Access videoWidth and videoHeight directly from videoRef.current
+            const videoWidth = videoRef.current.videoWidth;
+            const videoHeight = videoRef.current.videoHeight;
+      
+            // Set canvas dimensions to match the video dimensions
+            canvasRef.current.width = videoWidth;
+            canvasRef.current.height = videoHeight;
+      
+            // Run the object detection on the video
+            const predictions = await model.detect(video);
+            console.log(predictions);
+      
+            // Get the canvas 2D context
+            const ctx = canvasRef.current.getContext("2d");
+      
+            // Draw the predictions (bounding boxes, etc.)
+            drawRect(predictions, ctx);
+      
+            // Delay the next detection by 15 seconds
+            setTimeout(() => {
+              requestAnimationFrame(detectFrame);
+            }, 1000);
+            
+          } catch (err) {
+            console.error('Error during detection:', err);
+          }
+        } else {
+          console.error('canvasRef.current is null or not yet initialized.');
         }
       };
+      
   
       video.onloadeddata = () => {
         detectFrame();
@@ -327,7 +356,11 @@ const VideoStream = () => {
                   </option>
                 ))}
               </select>
-              <video className="max-w-[50%] rounded-md" ref={videoRef1} autoPlay muted />
+              <div className="relative max-w-[50%]">
+                <video className="w-full rounded-md" ref={videoRef1} autoPlay muted />
+                {/* Canvas overlays the video and stays within its bounds */}
+                <canvas ref={canvasRef} className="absolute top-0 left-0 w-full h-full rounded-md" />
+              </div>
               <div className='flex-row mt-2'>
                 <button className="bg-stone-950 text-stone-100 font-dangrek px-[1rem] py-[.5rem] rounded-sm mr-[1.5rem]" onClick={handleToggleRecording1}>
                   Start
