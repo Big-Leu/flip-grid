@@ -48,6 +48,7 @@ const VideoStream = () => {
   const [selectedDeviceId1, setSelectedDeviceId1] = useState(null);
   const [selectedDeviceId2, setSelectedDeviceId2] = useState(null);
   const [selectedDeviceId3, setSelectedDeviceId3] = useState(null);
+  const [imageList, setImageList] = useState([]);
   const [productInfo, setProductInfo] = useState({
     brandName: "Brand not available",
     mrpValue: "MRP not available",
@@ -85,12 +86,8 @@ const VideoStream = () => {
 
   const getslots = async () => {
     try {
-      const vid1=lastMessage1.data
-      const vid2=lastMessage2.data  
-      const raw = JSON.stringify([
-        `backend/services/video/${vid1}.mkv`,
-        `backend/services/video/${vid2}.mkv`
-      ]);
+      console.log("the data list is",imageList)
+      const raw = JSON.stringify(imageList);
       const response = await fetch(`${URL}/api/v1/form/fill`, {
         method: 'PUT',
         headers: {
@@ -157,6 +154,20 @@ const VideoStream = () => {
   
   useEffect(() => {
     if (lastMessage1) {
+      const vid1 = lastMessage1.data;    
+      try {
+          const parsedVid1 = JSON.parse(vid1);
+          console.log("Parsed object:", parsedVid1);
+
+          if (parsedVid1 && parsedVid1.img && Array.isArray(parsedVid1.img)) {
+              console.log("List is coming", parsedVid1.img);
+              setImageList(prevImageList => [...prevImageList, ...parsedVid1.img]);
+          } else {
+              console.log("No 'img' field found or it's not an array");
+          }
+      } catch (error) {
+          console.error("Error parsing JSON:", error);
+      }
       console.log('Message from camera 1:', lastMessage1.data);
     }
   }, [lastMessage1]);
@@ -164,12 +175,40 @@ const VideoStream = () => {
   useEffect(() => {
     if (lastMessage2) {
       console.log('Message from camera 2:', lastMessage2.data);
+      const vid1 = lastMessage2.data;    
+      try {
+          const parsedVid1 = JSON.parse(vid1);
+          console.log("Parsed object:", parsedVid1);
+
+          if (parsedVid1 && parsedVid1.img && Array.isArray(parsedVid1.img)) {
+              console.log("List is coming", parsedVid1.img);
+              setImageList(prevImageList => [...prevImageList, ...parsedVid1.img]);
+          } else {
+              console.log("No 'img' field found or it's not an array");
+          }
+      } catch (error) {
+          console.error("Error parsing JSON:", error);
+      }
     }
   }, [lastMessage2]);
   
   useEffect(() => {
     if (lastMessage3) {
       console.log('Message from camera 3:', lastMessage3.data);
+      const vid1 = lastMessage3.data;
+      try {
+        const parsedVid1 = JSON.parse(vid1);
+        console.log("Parsed object:", parsedVid1);
+
+        if (parsedVid1 && parsedVid1.img && Array.isArray(parsedVid1.img)) {
+            console.log("List is coming", parsedVid1.img);
+            setImageList(prevImageList => [...prevImageList, ...parsedVid1.img]);
+        } else {
+            console.log("No 'img' field found or it's not an array");
+        }
+    } catch (error) {
+        console.error("Error parsing JSON:", error);
+    }
     }
   }, [lastMessage3]);
   
@@ -196,38 +235,67 @@ const VideoStream = () => {
         
       const video = videoRef.current;
       const detectFrame = async () => {
-        if (video && model && canvasRef.current) { // Check if canvasRef.current is defined
-          try {
-            // Access videoWidth and videoHeight directly from videoRef.current
-            const videoWidth = videoRef.current.videoWidth;
-            const videoHeight = videoRef.current.videoHeight;
-      
-            // Set canvas dimensions to match the video dimensions
-            canvasRef.current.width = videoWidth;
-            canvasRef.current.height = videoHeight;
-      
-            // Run the object detection on the video
-            const predictions = await model.detect(video);
-            console.log(predictions);
-      
-            // Get the canvas 2D context
-            const ctx = canvasRef.current.getContext("2d");
-      
-            // Draw the predictions (bounding boxes, etc.)
-            drawRect(predictions, ctx);
-      
-            // Delay the next detection by 15 seconds
-            setTimeout(() => {
-              requestAnimationFrame(detectFrame);
-            }, 1000);
-            
-          } catch (err) {
-            console.error('Error during detection:', err);
-          }
+        if (video && model && canvasRef.current) {
+            try {
+                const videoWidth = video.videoWidth;
+                const videoHeight = video.videoHeight;
+    
+                canvasRef.current.width = videoWidth;
+                canvasRef.current.height = videoHeight;
+    
+                const predictions = await model.detect(video);
+                console.log(predictions);
+    
+                const ctx = canvasRef.current.getContext("2d");
+                ctx.clearRect(0, 0, canvasRef.current.width, canvasRef.current.height);
+    
+                // Draw the detected objects on the main canvas
+                drawRect(predictions, ctx);
+    
+                const detectedClasses = ["bottle", "cup", "apple", "banana"];
+                const detectedBoxes = predictions.filter(prediction =>
+                    detectedClasses.includes(prediction.class)
+                );
+    
+                for (const box of detectedBoxes) {
+                    const [x, y, width, height] = box['bbox'];
+                    
+                    // Create a new canvas for cropping the detected area
+                    const croppedCanvas = document.createElement('canvas');
+                    croppedCanvas.width = width;
+                    croppedCanvas.height = height;
+    
+                    const croppedCtx = croppedCanvas.getContext('2d');
+    
+                    // Draw the cropped region from the video directly (not from the main canvas)
+                    croppedCtx.drawImage(
+                        video,  // Use the video element as the source
+                        x, y,              // Start cropping at the detected bounding box
+                        width, height,     // Cropping width and height
+                        0, 0,              // Place cropped image at the top-left corner of new canvas
+                        width, height      // Render it at the same size
+                    );
+    
+                    // Get the cropped frame data as a JPEG image
+                    const frameData = croppedCanvas.toDataURL("image/jpeg");
+    
+                    // Send frame data via WebSocket
+                    sendMessage1(JSON.stringify({ image: frameData, class: box['class'] }));
+                }
+    
+                const fps = 60;
+                const delay = 5000 / fps;
+                setTimeout(() => {
+                    requestAnimationFrame(detectFrame);
+                }, delay);
+    
+            } catch (err) {
+                console.error('Error during detection:', err);
+            }
         } else {
-          console.error('canvasRef.current is null or not yet initialized.');
+            console.error('canvasRef.current is null or not yet initialized.');
         }
-      };
+    };
       
   
       video.onloadeddata = () => {
@@ -243,7 +311,7 @@ const VideoStream = () => {
       };  
 
       if (isRecording) {
-        mediaRecorder.start(100); // Start recording
+        mediaRecorder.start(100);
       } else if (mediaRecorder.state !== 'inactive') {
         mediaRecorder.stop();
       }
