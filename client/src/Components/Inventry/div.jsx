@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useRef } from 'react';
 import useWebSocket from 'react-use-websocket';
 import { v4 as uuidv4 } from 'uuid';
-import * as tf from "@tensorflow/tfjs"
+import * as tf from "@tensorflow/tfjs";
 import * as cocossd from "@tensorflow-models/coco-ssd"
 import { drawRect } from "../utilities";
 
@@ -39,7 +39,9 @@ const VideoStream = () => {
   const mediaRecorderRef1 = useRef(null);
   const mediaRecorderRef2 = useRef(null);
   const mediaRecorderRef3 = useRef(null);
-  const canvasRef = useRef(null);
+  const canvasRef1 = useRef(null);
+  const canvasRef2 = useRef(null);
+  const canvasRef3 = useRef(null);
   const [isRecording1, setIsRecording1] = useState(false);
   const [isRecording2, setIsRecording2] = useState(false);
   const [isRecording3, setIsRecording3] = useState(false);
@@ -54,10 +56,11 @@ const VideoStream = () => {
     mrpValue: "MRP not available",
     expiryDate: "Expiry date not available",
     freshStatus: "Freshness status not available",
-    confidence: "Confidence not available"
+    confidence: "Confidence not available",
+    description: "Type of the Object",
   });
   const [model, setModel] = useState(null);
-  const URL = "http://localhost:8000"
+  const URL = "http://localhost:8080"
   const [isReloading,setReloading] = useState(false);
   const handleClick = async () => {
       try {
@@ -102,14 +105,15 @@ const VideoStream = () => {
       console.log(result.length);
       setImageList([]);
       if (result.length > 0) {
-        const itemInfo = result[0] || {};
+        const itemInfo = result[0]
   
         const updatedProductInfo = {
           brandName: itemInfo.name || "Brand not available",
           mrpValue: itemInfo.mrp || "MRP not available",
           expiryDate: itemInfo.expiry_date || "Expiry date not available",
-          freshStatus: itemInfo["Predicted Class"] || "Freshness status not available",
-          confidence: itemInfo.Confidence ? itemInfo.Confidence[0].toFixed(2) : "Confidence not available"
+          freshStatus: itemInfo.freshStatus || "Freshness status not available",
+          confidence: itemInfo.confidence ? parseFloat(itemInfo.confidence).toFixed(2) : "Confidence not available",
+          description: itemInfo.description || "Type of the Object",
         };
   
         setProductInfo(updatedProductInfo);
@@ -121,19 +125,19 @@ const VideoStream = () => {
   };
   
   
-  const { sendMessage: sendMessage1, lastMessage: lastMessage1 } = useWebSocket('ws://127.0.0.1:8000/api/v1/form/ws', {
+  const { sendMessage: sendMessage1, lastMessage: lastMessage1 } = useWebSocket('ws://127.0.0.1:8080/api/v1/form/ws', {
     onOpen: () => console.log('WebSocket 1 connection opened.'),
     onClose: () => console.log('WebSocket 1 connection closed.'),
     onError: (event) => console.error('WebSocket 1 error:', event),
   });
   
-  const { sendMessage: sendMessage2, lastMessage: lastMessage2 } = useWebSocket('ws://127.0.0.1:8000/api/v1/form/ws', {
+  const { sendMessage: sendMessage2, lastMessage: lastMessage2 } = useWebSocket('ws://127.0.0.1:8080/api/v1/form/ws', {
     onOpen: () => console.log('WebSocket 2 connection opened.'),
     onClose: () => console.log('WebSocket 2 connection closed.'),
     onError: (event) => console.error('WebSocket 2 error:', event),
   });
   
-  const { sendMessage: sendMessage3, lastMessage: lastMessage3 } = useWebSocket('ws://127.0.0.1:8000/api/v1/form/ws', {
+  const { sendMessage: sendMessage3, lastMessage: lastMessage3 } = useWebSocket('ws://127.0.0.1:8080/api/v1/form/ws', {
     onOpen: () => console.log('WebSocket 3 connection opened.'),
     onClose: () => console.log('WebSocket 3 connection closed.'),
     onError: (event) => console.error('WebSocket 3 error:', event),
@@ -214,10 +218,10 @@ const VideoStream = () => {
   }, [lastMessage3]);
   
   const runCoco = async () => {
-    const net = await cocossd.load()
+    const net = await cocossd.load() // eslint-disable-next-line
     setModel(net)
   }
-  const startStreaming = async (videoRef, deviceId, mediaRecorderRef, sendMessage ,isRecording) => {
+  const startStreaming = async (videoRef, deviceId, mediaRecorderRef, sendMessage ,isRecording,canvasRef) => {
     if (!deviceId) return;
     
     try {
@@ -327,7 +331,7 @@ const VideoStream = () => {
 
   useEffect(() => {
     if (isRecording1) {
-      startStreaming(videoRef1, selectedDeviceId1, mediaRecorderRef1, sendMessage1,isRecording1);
+      startStreaming(videoRef1, selectedDeviceId1, mediaRecorderRef1, sendMessage1,isRecording1,canvasRef1);
     } else {
       if (mediaRecorderRef1.current && mediaRecorderRef1.current.state !== 'inactive') mediaRecorderRef1.current.stop();
     }
@@ -349,7 +353,7 @@ const VideoStream = () => {
   useEffect(() => {
 
     if (isRecording2) {
-      startStreaming(videoRef2, selectedDeviceId2, mediaRecorderRef2, sendMessage2,isRecording2);
+      startStreaming(videoRef2, selectedDeviceId2, mediaRecorderRef2, sendMessage2,isRecording2,canvasRef2);
     } else {
       if (mediaRecorderRef2.current && mediaRecorderRef2.current.state !== 'inactive') mediaRecorderRef2.current.stop();
     }
@@ -370,7 +374,7 @@ const VideoStream = () => {
   useEffect(() => {
 
     if (isRecording3) {
-      startStreaming(videoRef3, selectedDeviceId3, mediaRecorderRef3, sendMessage3,isRecording3);
+      startStreaming(videoRef3, selectedDeviceId3, mediaRecorderRef3, sendMessage3,isRecording3,canvasRef2);
     } else {
       if (mediaRecorderRef3.current && mediaRecorderRef3.current.state !== 'inactive') mediaRecorderRef3.current.stop();
     }
@@ -401,12 +405,6 @@ const VideoStream = () => {
   };
 
 
-
-
-
-
-
-  const urlmango = "https://s3-alpha-sig.figma.com/img/5706/e88d/549e105d65c1be2d8cd34273e09967d7?Expires=1729468800&Key-Pair-Id=APKAQ4GOSFWCVNEHN3O4&Signature=g~sU~cvBDERq1fBvoxh5JJAPEt8WOD3I1zX1d8s8oCFHPnA4mT2PStBcfZzPVfr29aIsx9QEgro4gzL5dyMSylJJmpN7RdJOf6KwpzyLP3Xv7PLzrD75Niz-HzKqqfKRkXTRPDCnSxOSe87K7HgzhlxwwiMPG8KjQ4FU2DyxAASFOU9gSgKpscW4oIb83agb-qtX-gkmbN0cFX7hOSNGigU6cUMcc7BxXIc2sJrY36JA4FGNKINFUpSjZmCBbJF8Q7b5diz2cKegoUuIqkPYodFy1vZ-uAOsllqlOBfclbYjc6q~IkwLKpzXnHK2mA3aojkwqOPT3yAFemLH2HrTpQ__"
   return (
     <div className='min-h-[100vh] min-w-screen flex flex-row'>
       <div className="min-h-full min-w-[25%] flex flex-col">
@@ -427,8 +425,7 @@ const VideoStream = () => {
               </select>
               <div className="relative max-w-[50%]">
                 <video className="w-full rounded-md" ref={videoRef1} autoPlay muted />
-                {/* Canvas overlays the video and stays within its bounds */}
-                <canvas ref={canvasRef} className="absolute top-0 left-0 w-full h-full rounded-md" />
+                <canvas ref={canvasRef1} className="absolute top-0 left-0 w-full h-full rounded-md" />
               </div>
               <div className='flex-row mt-2'>
                 <button className="bg-stone-950 text-stone-100 font-dangrek px-[1rem] py-[.5rem] rounded-sm mr-[1.5rem]" onClick={handleToggleRecording1}>
@@ -450,7 +447,10 @@ const VideoStream = () => {
                   </option>
                 ))}
               </select>
-              <video className="max-w-[50%] rounded-md" ref={videoRef2} autoPlay muted />
+              <div className="relative max-w-[50%]">
+                <video className="w-full rounded-md" ref={videoRef2} autoPlay muted />
+                <canvas ref={canvasRef2} className="absolute top-0 left-0 w-full h-full rounded-md" />
+              </div>
               <div className='flex-row mt-2'>
                 <button className="bg-stone-950 text-stone-100 font-dangrek px-[1rem] py-[.5rem] rounded-sm mr-[1.5rem]" onClick={handleToggleRecording2}>
                   Start
@@ -471,7 +471,10 @@ const VideoStream = () => {
                   </option>
                 ))}
               </select>
-              <video className="max-w-[50%] rounded-md" ref={videoRef3} autoPlay muted />
+              <div className="relative max-w-[50%]">
+                <video className="w-full rounded-md" ref={videoRef3} autoPlay muted />
+                <canvas ref={canvasRef3} className="absolute top-0 left-0 w-full h-full rounded-md" />
+              </div>
               <div className='flex-row mt-2'>
                 <button className="bg-stone-950 text-stone-100 font-dangrek px-[1rem] py-[.5rem] rounded-sm mr-[1.5rem]" onClick={handleToggleRecording3}>
                   Start
@@ -508,7 +511,7 @@ const VideoStream = () => {
                         </div>
                         <div className=''>
                           <label className='font-koulen text-stone-50'>object type</label>
-                          <label className='font-koulen text-[#6B6B6B] ml-[3.8rem]'>{productInfo.freshStatus}</label>
+                          <label className='font-koulen text-[#6B6B6B] ml-[3.8rem]'>{productInfo.description}</label>
                         </div> 
                      </div>
                       <div className='ml-[14rem] mt-[1rem] font-koulen'>
