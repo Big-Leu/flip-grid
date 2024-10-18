@@ -100,6 +100,7 @@ const VideoStream = () => {
       }
       const { result } = await response.json();
       console.log(result.length);
+      setImageList([]);
       if (result.length > 0) {
         const itemInfo = result[0] || {};
   
